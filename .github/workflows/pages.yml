@@ -37,6 +37,9 @@ jobs:
         with:
           node-version: 24.21.0
 
+      - name: Check generated bootstrap syntax
+        run: node --check _site/static-bootstrap.mjs
+
       - name: Install pinned browser-qualification tooling
         run: npm install --ignore-scripts --package-lock=false
 
