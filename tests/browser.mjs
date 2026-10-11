@@ -44,9 +44,23 @@ try {
   if (blankSettings.configurationDefaults['workbench.startupEditor'] !== 'none') {
     throw new Error('fresh visit should start without an open editor');
   }
-  if (blankSettings.additionalBuiltinExtensions.length !== 2) {
-    throw new Error('empty workbench must still load Remotish and its GitHub provider');
+  if (blankSettings.additionalBuiltinExtensions.length !== 3) {
+    throw new Error('empty workbench must load Remotish, GitHub and fixture providers');
   }
+  const fixtureResponse = await page.request.get(
+    origin + 'extensions/hrashton.remotish-fixture-provider/package.json'
+  );
+  if (!fixtureResponse.ok()) throw new Error('fixture provider manifest unavailable');
+  const fixtureManifest = await fixtureResponse.json();
+  if (fixtureManifest.remotish?.id !== 'fixture-provider' ||
+      !fixtureManifest.contributes?.commands?.some(
+        command => command.command === 'remotish.demo.openFixture')) {
+    throw new Error('fixture provider is missing its demo command');
+  }
+  const fixtureCode = await page.request.get(
+    origin + 'extensions/hrashton.remotish-fixture-provider/dist/extension.js'
+  );
+  if (!fixtureCode.ok()) throw new Error('fixture provider browser entrypoint unavailable');
   await page.waitForTimeout(1300);
   if (githubResponses.length || githubRequests.some(x => x.startsWith('https://api.github.com/repos/'))) {
     throw new Error('empty startup unexpectedly requested a GitHub repository');
@@ -67,8 +81,8 @@ try {
   if (settings.configurationDefaults['workbench.colorTheme'] !== 'Default Dark+') {
     throw new Error('dark theme not configured');
   }
-  if (settings.additionalBuiltinExtensions.length !== 2) {
-    throw new Error('expected host and GitHub provider are not preloaded');
+  if (settings.additionalBuiltinExtensions.length !== 3) {
+    throw new Error('expected host, GitHub and fixture providers are not preloaded');
   }
   const selected = settings.workspaceProvider.workspace?.folderUri;
   if (selected?.scheme !== 'remotish-github' ||
@@ -91,7 +105,7 @@ try {
     throw new Error('Remotish GitHub provider did not successfully query public GitHub');
   }
   if (exceptions.length) throw new Error('browser exceptions: ' + exceptions.join('\n'));
-  console.log('browser qualification passed: workbench, dark theme, builtins, public GitHub');
+  console.log('browser qualification passed: workbench, dark theme, fixture, public GitHub');
 } finally {
   await browser?.close();
   server.kill('SIGTERM');
