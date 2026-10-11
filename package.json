@@ -1,0 +1,10 @@
+{
+  "name": "cosw-demo-qualification",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Pinned browser qualification for the COSW demo",
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
