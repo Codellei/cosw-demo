@@ -28,6 +28,11 @@ jobs:
           python3 -m unittest discover -s tests -v
           bash -n scripts/maintain.sh
 
+      - name: Probe immutable release discovery (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m scripts.update_releases --output .discovered-release-pins.json
+
       - name: Assemble SHA-256-pinned releases
         run: python3 -m scripts.build
 

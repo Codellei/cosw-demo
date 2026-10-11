@@ -17,12 +17,13 @@ refreshed if a newer eligible release appears before merging.
 
 ## One-time configuration
 
-1. Keep `master` protected with a required `qualify` check; restrict
+1. Enable **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests**. Organization policy may also need to allow this. The bot never self-approves, but GitHub requires this setting for its pull-request creation action. The `GITHUB_TOKEN` uses explicitly scoped permissions, not a permanently stored PAT.
+2. Keep `master` protected with a required `qualify` check; restrict
    force pushes and unauthorized changes to workflows, code and policy.
-2. A required human PR approval cannot coexist with **zero-human**
+3. A required human PR approval cannot coexist with **zero-human**
    lock-update merges unless you configure a narrowly scoped automation
    exception. Do not grant administrator bypass to the workflow.
-3. To opt in to unattended merging, create the Actions repository variable
+4. To opt in to unattended merging, create the Actions repository variable
    `AUTO_PROMOTE_ENABLED=true` under **Settings → Secrets and variables →
    Actions → Variables**. The default is *off*: the bot only opens and
    qualifies release-update PRs.
