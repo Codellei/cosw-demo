@@ -1,7 +1,8 @@
 # Deploy your own Remotish demo
 
 This repository builds **one** pinned COSW + Dark+ + Remotish + GitHub Provider
-configuration for a public, read-only GitHub Pages website. No server or token
++ Fixture Provider configuration for a public GitHub Pages website. Public
+GitHub access is read-only; the deterministic fixture provider works offline. No server or token
 is necessary for anonymous public repository browsing.
 
 1. Fork this repository into your GitHub account or organization.
@@ -37,7 +38,7 @@ The PR workflow runs read-only and **does not publish previews**. Only reviewed
 `master` builds deploy to the Pages site. Changes to the canonical COSW runtime
 remain outside this repository. The demo adds only `https://api.github.com`
 to the original network policy, disables host telemetry and webviews, and uses
-two pinned browser-compatible VSIX files.
+three pinned browser-compatible VSIX files.
 
 GitHub Pages serves a static site and cannot configure arbitrary HTTP response
 security headers. This workflow tests Chromium on GitHub Actions; it is not a
