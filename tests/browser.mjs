@@ -32,7 +32,9 @@ try {
       githubResponses.push({ url: response.url(), status: response.status(), ok: response.ok() });
     }
   });
-  const response = await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  const sample = 'remotish-github://open/v1/octocat/Hello-World';
+  const response = await page.goto(origin + '?folder=' + encodeURIComponent(sample),
+    { waitUntil: 'domcontentloaded', timeout: 60000 });
   if (!response?.ok()) throw new Error('workbench document unavailable');
   await page.locator('.monaco-workbench').waitFor({ timeout: 60000 });
   const config = await page.locator('#vscode-workbench-web-configuration')
@@ -51,13 +53,13 @@ try {
     throw new Error('public GitHub sample workspace not selected');
   }
   await page.locator('.monaco-workbench.vs-dark').waitFor({ timeout: 60000 });
-  for (let i = 0; i < 40 && !githubResponses.some(x => x.ok); i++) {
+  for (let i = 0; i < 25 && !githubResponses.some(x => x.ok); i++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
   if (!githubResponses.some(x => x.ok)) {
     const view = await page.locator('body').innerText().catch(() => '<body unavailable>');
     const diagnostics = { githubResponses, githubRequests: githubRequests.slice(-30),
-      exceptions, consoleMessages: consoleMessages.slice(-30), failedRequests: failedRequests.slice(-30),
+      exceptions, consoleMessages: [...consoleMessages.slice(0, 15), ...consoleMessages.slice(-15)], failedRequests: failedRequests.slice(-30),
       visibleText: view.slice(0, 3000) };
     console.error('Browser diagnostics:', JSON.stringify(diagnostics, null, 2));
     throw new Error('Remotish GitHub provider did not successfully query public GitHub');
