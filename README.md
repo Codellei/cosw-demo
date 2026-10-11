@@ -60,7 +60,7 @@ The PR job has read-only GitHub permissions and cannot deploy untrusted PR conte
 
 ## Compatibility and limits
 
-Currently pinned COSW `v1.141.0-web.1` predates the newer Open VSX-enabled COSW profile, while both Remotish VSIXs are `v0.1.0-beta.15`. A later COSW release should be considered through a new reviewed lock update and full browser qualification. This demo does not change COSW's canonical production extension-lock admission/mirror policy.
+Currently pinned COSW `v1.141.0-web.2` includes the Open VSX-ready profile and native workspace persistence / URI restoration added in COSW PRs #110 and #112. Both Remotish VSIXs are pinned at `v0.1.0-beta.15`. Runtime activation is subject to the browser qualification workflow; the public Open VSX registry alone does not establish compatibility. This demo does not change COSW's canonical production extension-lock admission/mirror policy.
 
 The derived CSP permits `https://api.github.com` as the **only** extra connection origin beyond those already present in the pinned COSW release. Proposed APIs, workbench telemetry and webviews remain disabled. GitHub anonymous API limits and CORS restrictions apply, and GitHub can receive visitors' IP addresses through direct browser requests.
 
