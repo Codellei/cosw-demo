@@ -3,13 +3,17 @@
 **Demo:** https://codellei.github.io/cosw-demo/ (available after Pages publication).
 
 1. Open the link in a desktop browser. Code OSS Web launches with **Dark+**,
-   **Remotish**, and **Remotish GitHub Provider** already included.
+   **Remotish**, **Remotish GitHub Provider**, and **Remotish Fixture Provider**
+   already included.
 2. A fresh browser session starts with an **empty editor**. Select **File → Open Folder**
    to choose a browser-supported local folder, where the browser permits it.
    A previously opened workspace may be restored on later visits. If the old
    `Hello-World` folder still appears, choose **File → Close Folder** once to
    return to the empty workspace; the demo does not discard your browser state.
-3. To open **a public GitHub repository through Remotish**, use this address format:
+3. To try the **deterministic fixture repository** without GitHub access, open
+   the Command Palette (F1) and select **Remotish Demo: Open Fixture Repository**.
+   This uses Remotish's fixture adapter to exercise the editor and Source Control.
+4. To open **a public GitHub repository through Remotish**, use this address format:
 
    ```text
    https://codellei.github.io/cosw-demo/?repo=OWNER/REPOSITORY
@@ -32,7 +36,9 @@ Browse public repository files and history, switch among existing branches,
 and try local edits, staging and diffs. The browser may preserve your local
 working overlay for later visits.
 
-**No GitHub account or token is needed.** This demo cannot open private
+**No GitHub account or token is needed.** The fixture provider uses a local,
+deterministic repository; it never publishes to GitHub. The GitHub provider
+cannot open private
 repositories, push commits, create remote branches or change the remote
 repository. Edits are **local to your browser**, not saved to GitHub.
 
