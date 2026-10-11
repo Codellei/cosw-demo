@@ -13,6 +13,7 @@ from scripts.build import (InvalidArtifact, assemble, safe_relative,
 
 HOST = "hrashton.remotish"
 PROVIDER = "hrashton.remotish-github-provider"
+FIXTURE = "hrashton.remotish-fixture-provider"
 
 
 def digest(data):
@@ -67,12 +68,20 @@ def tar_bytes(*, path="index.html", symlink=False):
     return out.getvalue()
 
 
-def vsix_bytes(extid, *, proposed=False, wrong_dependency=False):
+def vsix_bytes(extid, *, proposed=False, wrong_dependency=False, bad_fixture=False):
     publisher, name = extid.split(".", 1)
     manifest = {"publisher": publisher, "name": name, "version": "0.1.0-beta.15",
                 "license": "0BSD", "browser": "./dist/extension.js"}
     if extid == PROVIDER:
         manifest["extensionDependencies"] = ["someone.else"] if wrong_dependency else [HOST]
+    if extid == FIXTURE:
+        manifest["remotish"] = {
+            "provider": True, "apiVersion": 1,
+            "id": "wrong" if bad_fixture else "fixture-provider",
+        }
+        manifest["contributes"] = {
+            "commands": [{"command": "remotish.demo.openFixture"}],
+        }
     if proposed:
         manifest["enabledApiProposals"] = ["timeline"]
     out = io.BytesIO()
@@ -82,14 +91,16 @@ def vsix_bytes(extid, *, proposed=False, wrong_dependency=False):
     return out.getvalue()
 
 
-def make_lock(cosw, host, provider):
+def make_lock(cosw, host, provider, fixture):
     return {"schemaVersion": 1,
             "cosw": asset("code-oss-static-web-v0.1.0-beta.15.tar.gz", cosw),
             "extensions": [
                 {"id": HOST, "version": "0.1.0-beta.15", "license": "0BSD",
                  **asset("remotish.vsix", host)},
                 {"id": PROVIDER, "version": "0.1.0-beta.15", "license": "0BSD",
-                 **asset("remotish-github-provider.vsix", provider)}]}
+                 **asset("remotish-github-provider.vsix", provider)},
+                {"id": FIXTURE, "version": "0.1.0-beta.15", "license": "0BSD",
+                 **asset("remotish-fixture-provider.vsix", fixture)}]}
 
 
 class AssemblerTests(unittest.TestCase):
@@ -109,17 +120,18 @@ class AssemblerTests(unittest.TestCase):
             self.assertFalse(_url_permitted(url), url)
 
     def _run(self, *, symlink=False, traversal=False, proposed=False,
-             wrong_dependency=False, corrupt=False):
+             wrong_dependency=False, corrupt=False, bad_fixture=False):
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as tmp:
             root = Path(tmp)
             cosw = tar_bytes(path="../index.html" if traversal else "index.html",
                              symlink=symlink)
             host = vsix_bytes(HOST, proposed=proposed)
             provider = vsix_bytes(PROVIDER, wrong_dependency=wrong_dependency)
-            lock = make_lock(cosw, host, provider)
+            fixture = vsix_bytes(FIXTURE, bad_fixture=bad_fixture)
+            lock = make_lock(cosw, host, provider, fixture)
             files = []
             for name, data in (("cosw.tar.gz", cosw), ("host.vsix", host),
-                               ("provider.vsix", provider)):
+                               ("provider.vsix", provider), ("fixture.vsix", fixture)):
                 file = root / name
                 file.write_bytes(data + b"bad" if corrupt and name == "host.vsix" else data)
                 files.append(file)
@@ -142,7 +154,7 @@ class AssemblerTests(unittest.TestCase):
         self.assertIn("demoRequestedWorkspace", output["bootstrap"])
         self.assertIn("history.replaceState", output["bootstrap"])
         self.assertIn("repos.length + folders.length !== 1", output["bootstrap"])
-        self.assertEqual([HOST, PROVIDER],
+        self.assertEqual([HOST, PROVIDER, FIXTURE],
                          [x["id"] for x in output["additional"]["extensions"]])
         self.assertEqual(output["locked"], {"schemaVersion": 1, "extensions": []})
         self.assertEqual(output["manifest"]["networkExtraOrigins"],
@@ -150,15 +162,29 @@ class AssemblerTests(unittest.TestCase):
 
     def test_rejects_symlink_traversal_proposed_api_and_wrong_dependency(self):
         for kwargs in ({"symlink": True}, {"traversal": True}, {"proposed": True},
-                       {"wrong_dependency": True}, {"corrupt": True}):
+                       {"wrong_dependency": True}, {"bad_fixture": True},
+                       {"corrupt": True}):
             with self.subTest(kwargs=kwargs):
                 with self.assertRaises(InvalidArtifact):
                     self._run(**kwargs)
 
     def test_rejects_unexpected_lock_and_unpinned_url(self):
-        cosw, host, provider = tar_bytes(), vsix_bytes(HOST), vsix_bytes(PROVIDER)
-        lock = make_lock(cosw, host, provider)
+        cosw, host, provider, fixture = (tar_bytes(), vsix_bytes(HOST),
+                                         vsix_bytes(PROVIDER), vsix_bytes(FIXTURE))
+        lock = make_lock(cosw, host, provider, fixture)
         lock["extensions"][0]["url"] = "https://evil.example/x.vsix"
+        with self.assertRaises(InvalidArtifact):
+            validate_lock(lock)
+
+        lock = make_lock(cosw, host, provider, fixture)
+        lock["extensions"].pop()
+        with self.assertRaises(InvalidArtifact):
+            validate_lock(lock)
+
+        lock = make_lock(cosw, host, provider, fixture)
+        lock["extensions"][1], lock["extensions"][2] = (
+            lock["extensions"][2], lock["extensions"][1]
+        )
         with self.assertRaises(InvalidArtifact):
             validate_lock(lock)
 

@@ -24,6 +24,15 @@
       "url": "https://github.com/Codellei/remotish/releases/download/v0.1.0-beta.15/remotish-github-provider.vsix",
       "sha256": "d3cbd06e4f9024c378620cfe36a114b28e8736cacaf18cfc39f4f7a9a6ace805",
       "license": "0BSD"
+    },
+    {
+      "id": "hrashton.remotish-fixture-provider",
+      "version": "0.1.0-beta.15",
+      "tag": "v0.1.0-beta.15",
+      "asset": "remotish-fixture-provider.vsix",
+      "url": "https://github.com/Codellei/remotish/releases/download/v0.1.0-beta.15/remotish-fixture-provider.vsix",
+      "sha256": "95b4a7e44771f590ef25b6f5499f80f67f08b81abf6d6034426be1e314cc9c2d",
+      "license": "0BSD"
     }
   ]
 }

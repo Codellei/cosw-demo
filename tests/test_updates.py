@@ -29,7 +29,8 @@ def remotish(tag="v0.1.0-beta.16", immutable=True):
     return {
         "tag_name": tag, "immutable": immutable, "draft": False,
         "published_at": "2026-10-12T01:00:00Z",
-        "assets": [fake_asset("remotish.vsix"), fake_asset("remotish-github-provider.vsix", "b")],
+        "assets": [fake_asset("remotish.vsix"), fake_asset("remotish-github-provider.vsix", "b"),
+                   fake_asset("remotish-fixture-provider.vsix", "c")],
     }
 
 
@@ -47,17 +48,20 @@ class ReleaseUpdateTests(unittest.TestCase):
         self.assertEqual({x["tag"] for x in changed["extensions"]}, {"v0.1.0-beta.16"})
         self.assertEqual(changed["extensions"][0]["sha256"], "a" * 64)
         self.assertEqual(changed["extensions"][1]["sha256"], "b" * 64)
+        self.assertEqual(changed["extensions"][2]["sha256"], "c" * 64)
 
     def test_monotonic_across_cosw_versions(self):
         changed = updated_lock(self.lock, [cosw("v1.142.0-web.0"), cosw()], [])
         self.assertEqual(changed["cosw"]["tag"], "v1.142.0-web.0")
 
     def test_missing_asset_digest_and_nonimmutable_skipped(self):
-        entry = remotish()
-        entry["assets"][1].pop("digest")
-        self.assertEqual(updated_lock(self.lock, [], [entry])["extensions"],
-                         self.lock["extensions"])
-        self.assertIsNone(asset_digest(entry, "remotish-github-provider.vsix"))
+        for asset_index, name in ((1, "remotish-github-provider.vsix"),
+                                  (2, "remotish-fixture-provider.vsix")):
+            entry = remotish()
+            entry["assets"][asset_index].pop("digest")
+            self.assertEqual(updated_lock(self.lock, [], [entry])["extensions"],
+                             self.lock["extensions"])
+            self.assertIsNone(asset_digest(entry, name))
         self.assertIsNone(eligible_release(cosw(immutable=False), "cosw"))
 
     def test_unknown_channels_require_human_compatibility_review(self):

@@ -22,7 +22,11 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = ROOT / "config/releases.lock.json"
-EXPECTED_IDS = ("hrashton.remotish", "hrashton.remotish-github-provider")
+EXPECTED_IDS = (
+    "hrashton.remotish",
+    "hrashton.remotish-github-provider",
+    "hrashton.remotish-fixture-provider",
+)
 ALLOWED_DOWNLOAD_HOSTS = frozenset({
     "github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"
 })
@@ -80,18 +84,20 @@ def validate_lock(lock: dict) -> None:
     require(re.fullmatch(r"code-oss-static-web-[a-zA-Z0-9.-]+\.tar\.gz",
                          lock["cosw"]["asset"]) is not None, "COSW must be the release tar.gz")
     exts = lock.get("extensions")
-    require(isinstance(exts, list) and len(exts) == 2, "require exactly two extensions")
+    require(isinstance(exts, list) and len(exts) == len(EXPECTED_IDS), "require exactly three extensions")
     require(tuple(ext.get("id") for ext in exts if isinstance(ext, dict)) == EXPECTED_IDS,
             "unexpected extension IDs or order")
     for ext in exts:
         check_asset(ext, "extension")
-        require(ext.get("asset") in ("remotish.vsix", "remotish-github-provider.vsix"),
+        require(ext.get("asset") in ("remotish.vsix", "remotish-github-provider.vsix",
+                                      "remotish-fixture-provider.vsix"),
                 "unexpected VSIX asset name")
         require(ext.get("version") == ext.get("tag", "").lstrip("v"),
                 "VSIX version/tag mismatch")
         require(ext.get("license") == "0BSD", "unapproved extension license")
     require(exts[0]["asset"] == "remotish.vsix"
-            and exts[1]["asset"] == "remotish-github-provider.vsix",
+            and exts[1]["asset"] == "remotish-github-provider.vsix"
+            and exts[2]["asset"] == "remotish-fixture-provider.vsix",
             "VSIX files must match pinned IDs")
 
 
@@ -224,6 +230,19 @@ def add_vsix(vsix_path: Path, ext: dict, output: Path) -> dict:
     if ext["id"] == EXPECTED_IDS[1]:
         require(manifest.get("extensionDependencies") == [EXPECTED_IDS[0]],
                 "GitHub provider must depend on pinned Remotish host")
+    if ext["id"] == EXPECTED_IDS[2]:
+        provider = manifest.get("remotish")
+        require(isinstance(provider, dict) and provider.get("provider") is True
+                and provider.get("apiVersion") == 1
+                and provider.get("id") == "fixture-provider",
+                "fixture provider marker mismatch")
+        contributes = manifest.get("contributes")
+        commands = contributes.get("commands") if isinstance(contributes, dict) else None
+        require(isinstance(commands, list) and any(
+            isinstance(command, dict)
+            and command.get("command") == "remotish.demo.openFixture"
+            for command in commands
+        ), "fixture provider open command missing")
     return {"id": ext["id"], "version": ext["version"],
             "path": f"extensions/{ext['id']}/", "browserCompatible": True,
             "license": ext["license"]}
@@ -318,7 +337,7 @@ if (requestedWorkspace) initialWorkspace = requestedWorkspace;
 
 def assemble(cosw_tar: Path, vsix_files: list[Path], output: Path, lock: dict) -> None:
     validate_lock(lock)
-    require(len(vsix_files) == 2, "need two VSIX files")
+    require(len(vsix_files) == len(EXPECTED_IDS), "need three VSIX files")
     for asset, file in zip([lock["cosw"], *lock["extensions"]], [cosw_tar, *vsix_files]):
         require(file.stat().st_size <= MAX_DOWNLOAD and sha256_file(file) == asset["sha256"],
                 f"invalid pinned digest: {asset['asset']}")
