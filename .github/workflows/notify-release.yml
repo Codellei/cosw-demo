@@ -1,0 +1,46 @@
+name: Notify Remotish demo of an upstream release
+
+on:
+  workflow_call:
+    inputs:
+      app-client-id:
+        description: Codellei release dispatcher GitHub App client ID
+        type: string
+        required: true
+    secrets:
+      app-private-key:
+        description: Codellei release dispatcher GitHub App private key
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    name: Signal cosw-demo release maintenance
+    if: >-
+      (github.repository == 'Codellei/remotish' ||
+       github.repository == 'Codellei/code-oss-static-web') &&
+      github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mint repository-scoped installation token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+          owner: Codellei
+          repositories: cosw-demo
+          permission-actions: write
+
+      - name: Notify demo to discover verified published releases
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run release-maintenance.yml \
+            --repo Codellei/cosw-demo \
+            --ref master

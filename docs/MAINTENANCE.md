@@ -5,7 +5,7 @@ Failures must not overwrite the previously deployed GitHub Pages demo.
 
 ## Release selection
 
-Every two hours GitHub Actions checks for newer **immutable** releases of
+After each successful COSW or Remotish release, GitHub Actions dispatches this maintenance workflow using a short-lived GitHub App token. A daily reconciliation run checks for newer **immutable** releases of
 `Codellei/code-oss-static-web` and `Codellei/remotish`. The selector
 accepts COSW `v1.*-web.*` and Remotish `v0.1.*-beta.*` only, requiring
 published SHA-256 digests and complete assets. The host and GitHub provider
@@ -14,6 +14,27 @@ releases, missing digests and unknown formats are skipped.
 
 One dedicated bot PR changes **only** `config/releases.lock.json`. It is
 refreshed if a newer eligible release appears before merging.
+
+## Reusable release dispatcher
+
+`.github/workflows/notify-release.yml` is stored here and **called by**
+the COSW and Remotish release workflows, pinned to an exact commit SHA.
+
+The caller supplies `RELEASE_APP_CLIENT_ID` and
+`RELEASE_APP_PRIVATE_KEY` from organization Actions variables/secrets.
+The GitHub App must be installed on **only** `cosw-demo`, with
+**Actions: read and write** repository permission. The reusable workflow
+requests only a `cosw-demo` Actions-write installation token and revokes
+it automatically after the job. It does not use a person's PAT.
+
+This dispatch is only a *signal*: the demo independently looks up published,
+immutable releases and checks exact SHA-256 asset digests. Calls on ordinary
+source branch changes and untrusted pull requests are not used.
+
+Onboarding order: merge and qualify the dispatcher in `cosw-demo` before
+enabling upstream reusable workflow callers, or caller dispatches will fail
+until the target `release-maintenance.yml` is present on the default branch.
+Use daily reconciliation as a fallback for missed notifications.
 
 ## One-time configuration
 
