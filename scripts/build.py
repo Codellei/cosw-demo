@@ -340,6 +340,7 @@ def assemble(cosw_tar: Path, vsix_files: list[Path], output: Path, lock: dict) -
         (stage / "demo-provenance.json").write_text(
             json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
         )
+        (stage / ".nojekyll").write_text("", encoding="utf-8")
         if output.exists():
             require(output.is_dir(), "output exists and is not a directory")
             shutil.rmtree(output)
