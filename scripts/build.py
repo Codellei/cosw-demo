@@ -281,7 +281,357 @@ def render_policy(site: Path) -> None:
   if (repos.length + folders.length !== 1) return undefined;
   let candidate = repos[0];
   if (folders.length) {
-    const match = /^remotish-github:\\/\\/open\\/v1\\/([^/?#]+)\\/([^/?#]+)$/.exec(folders[0]);
+    const match = new RegExp('^remotish-github://open/v1/([^/?#]+)/([^/?#]+)
+    if (!match) return undefined;
+    candidate = match[1] + '/' + match[2];
+  }
+  const match = new RegExp('^([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)/([A-Za-z0-9._-]{1,100})
+  if (!match || match[2] === '.' || match[2] === '..') return undefined;
+  // Consume the accepted navigation request once so that Remotish's subsequent
+  // canonical-workspace reload does not restart the bootstrap indefinitely.
+  url.searchParams.delete(repos.length ? 'repo' : 'folder');
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  return { folderUri: { scheme: 'remotish-github', authority: 'open',
+    path: '/v1/' + match[1] + '/' + match[2] } };
+}
+const requestedWorkspace = demoRequestedWorkspace();
+if (requestedWorkspace) initialWorkspace = requestedWorkspace;
+else if (!initialWorkspace) initialWorkspace = {
+  folderUri: { scheme: 'remotish-github', authority: 'open',
+    path: '/v1/octocat/Hello-World' }
+};
+"""
+    marker = "const config = {"
+    require(bootstrap.count(marker) == 1, "COSW bootstrap contract changed")
+    # COSW web.2 includes the native workspace provider and URI.revive fix.
+    # Fail closed if a different release no longer provides this contract.
+    require(bootstrap.count("const WORKSPACE_KEY = 'cosw.workspace.v1';") == 1,
+            "COSW web.2 workspace persistence contract missing")
+    require(bootstrap.count("let initialWorkspace;") == 1
+            and bootstrap.count("workspaceProvider: {") == 1
+            and bootstrap.count("workspace: initialWorkspace") == 1,
+            "COSW native workspace provider contract changed")
+    require(bootstrap.count("const config = {") == 1,
+            "COSW workbench contract changed")
+    bootstrap = bootstrap.replace(marker, default_repo + marker, 1)
+    require("enableTelemetry: false" in bootstrap and "invalid.invalid" in bootstrap,
+            "COSW security bootstrap contract changed")
+    bootstrap_path.write_text(bootstrap, encoding="utf-8")
+
+
+def assemble(cosw_tar: Path, vsix_files: list[Path], output: Path, lock: dict) -> None:
+    validate_lock(lock)
+    require(len(vsix_files) == 2, "need two VSIX files")
+    for asset, file in zip([lock["cosw"], *lock["extensions"]], [cosw_tar, *vsix_files]):
+        require(file.stat().st_size <= MAX_DOWNLOAD and sha256_file(file) == asset["sha256"],
+                f"invalid pinned digest: {asset['asset']}")
+    require(not output.is_symlink(), "output must not be a symlink")
+    require(output != ROOT and ROOT in output.parents, "output must be inside repo")
+    with tempfile.TemporaryDirectory(prefix=".cosw-demo-", dir=ROOT) as temporary:
+        stage = Path(temporary) / "site"
+        unpack_cosw(cosw_tar, stage)
+        require((stage / "out/vs/workbench/workbench.web.main.internal.js").is_file(),
+                "COSW web runtime entrypoint missing")
+        require((stage / "out/vs/workbench/workbench.web.main.internal.css").is_file(),
+                "COSW web stylesheet missing")
+        for name in ("additional-extensions.json", "extensions.json", "locked-extensions.json",
+                     "deployment-profile.json", "static-bootstrap.mjs", "runtime.json"):
+            require((stage / name).is_file(), f"COSW contract file missing: {name}")
+        additional = read_json(stage / "additional-extensions.json")
+        builtins = read_json(stage / "extensions.json")
+        locked = read_json(stage / "locked-extensions.json")
+        require(additional == {"schemaVersion": 1, "extensions": []},
+                "demo expects clean COSW extension list")
+        require(locked == {"schemaVersion": 1, "extensions": []},
+                "demo cannot replace COSW approved lock entries")
+        require(builtins.get("schemaVersion") == 1
+                and isinstance(builtins.get("extensions"), list), "invalid COSW extension index")
+        render_policy(stage)
+        installed = [add_vsix(file, ext, stage)
+                     for file, ext in zip(vsix_files, lock["extensions"])]
+        additional["extensions"] = [{"id": entry["id"], "path": entry["path"]}
+                                    for entry in installed]
+        builtins["extensions"].extend(installed)
+        (stage / "additional-extensions.json").write_text(
+            json.dumps(additional, indent=2) + "\n", encoding="utf-8"
+        )
+        (stage / "extensions.json").write_text(
+            json.dumps(builtins, indent=2) + "\n", encoding="utf-8"
+        )
+        provenance = {
+            "schemaVersion": 1, "kind": "derived-COSW-demo-not-canonical-release",
+            "cosw": {key: lock["cosw"][key] for key in ("tag", "sha256", "url")},
+            "extensions": [{"id": x["id"], "version": x["version"],
+                            "sha256": x["sha256"], "url": x["url"]}
+                           for x in lock["extensions"]],
+            "networkExtraOrigins": [GITHUB_ORIGIN],
+            "defaultPublicRepository": "octocat/Hello-World",
+            "defaultTheme": "Default Dark+",
+            "sourceCommit": os.environ.get("GITHUB_SHA", "local-build"),
+        }
+        (stage / "demo-provenance.json").write_text(
+            json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
+        )
+        (stage / ".nojekyll").write_text("", encoding="utf-8")
+        if output.exists():
+            require(output.is_dir(), "output exists and is not a directory")
+            shutil.rmtree(output)
+        stage.rename(output)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--offline", action="store_true", help="use only SHA-verified cache")
+    parser.add_argument("--output", default="_site")
+    args = parser.parse_args()
+    lock = read_json(LOCK_PATH)
+    validate_lock(lock)
+    cache = ROOT / ".cache" / "downloads"
+    assets = [lock["cosw"], *lock["extensions"]]
+    pinned = [fetch_pinned(asset, cache, offline=args.offline) for asset in assets]
+    output = (ROOT / args.output).resolve()
+    assemble(pinned[0], pinned[1:], output, lock)
+    print(f"Qualified-input COSW demo assembled at {output}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (InvalidArtifact, OSError, ValueError, tarfile.TarError, zipfile.BadZipFile) as exc:
+        raise SystemExit(f"demo build failed closed: {exc}") from None
+).exec(folders[0]);
+    if (!match) return undefined;
+    candidate = match[1] + '/' + match[2];
+  }
+  const match = /^([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)\\/([A-Za-z0-9._-]{1,100})$/.exec(candidate);
+  if (!match || match[2] === '.' || match[2] === '..') return undefined;
+  // Consume the accepted navigation request once so that Remotish's subsequent
+  // canonical-workspace reload does not restart the bootstrap indefinitely.
+  url.searchParams.delete(repos.length ? 'repo' : 'folder');
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  return { folderUri: { scheme: 'remotish-github', authority: 'open',
+    path: '/v1/' + match[1] + '/' + match[2] } };
+}
+const requestedWorkspace = demoRequestedWorkspace();
+if (requestedWorkspace) initialWorkspace = requestedWorkspace;
+else if (!initialWorkspace) initialWorkspace = {
+  folderUri: { scheme: 'remotish-github', authority: 'open',
+    path: '/v1/octocat/Hello-World' }
+};
+"""
+    marker = "const config = {"
+    require(bootstrap.count(marker) == 1, "COSW bootstrap contract changed")
+    # COSW web.2 includes the native workspace provider and URI.revive fix.
+    # Fail closed if a different release no longer provides this contract.
+    require(bootstrap.count("const WORKSPACE_KEY = 'cosw.workspace.v1';") == 1,
+            "COSW web.2 workspace persistence contract missing")
+    require(bootstrap.count("let initialWorkspace;") == 1
+            and bootstrap.count("workspaceProvider: {") == 1
+            and bootstrap.count("workspace: initialWorkspace") == 1,
+            "COSW native workspace provider contract changed")
+    require(bootstrap.count("const config = {") == 1,
+            "COSW workbench contract changed")
+    bootstrap = bootstrap.replace(marker, default_repo + marker, 1)
+    require("enableTelemetry: false" in bootstrap and "invalid.invalid" in bootstrap,
+            "COSW security bootstrap contract changed")
+    bootstrap_path.write_text(bootstrap, encoding="utf-8")
+
+
+def assemble(cosw_tar: Path, vsix_files: list[Path], output: Path, lock: dict) -> None:
+    validate_lock(lock)
+    require(len(vsix_files) == 2, "need two VSIX files")
+    for asset, file in zip([lock["cosw"], *lock["extensions"]], [cosw_tar, *vsix_files]):
+        require(file.stat().st_size <= MAX_DOWNLOAD and sha256_file(file) == asset["sha256"],
+                f"invalid pinned digest: {asset['asset']}")
+    require(not output.is_symlink(), "output must not be a symlink")
+    require(output != ROOT and ROOT in output.parents, "output must be inside repo")
+    with tempfile.TemporaryDirectory(prefix=".cosw-demo-", dir=ROOT) as temporary:
+        stage = Path(temporary) / "site"
+        unpack_cosw(cosw_tar, stage)
+        require((stage / "out/vs/workbench/workbench.web.main.internal.js").is_file(),
+                "COSW web runtime entrypoint missing")
+        require((stage / "out/vs/workbench/workbench.web.main.internal.css").is_file(),
+                "COSW web stylesheet missing")
+        for name in ("additional-extensions.json", "extensions.json", "locked-extensions.json",
+                     "deployment-profile.json", "static-bootstrap.mjs", "runtime.json"):
+            require((stage / name).is_file(), f"COSW contract file missing: {name}")
+        additional = read_json(stage / "additional-extensions.json")
+        builtins = read_json(stage / "extensions.json")
+        locked = read_json(stage / "locked-extensions.json")
+        require(additional == {"schemaVersion": 1, "extensions": []},
+                "demo expects clean COSW extension list")
+        require(locked == {"schemaVersion": 1, "extensions": []},
+                "demo cannot replace COSW approved lock entries")
+        require(builtins.get("schemaVersion") == 1
+                and isinstance(builtins.get("extensions"), list), "invalid COSW extension index")
+        render_policy(stage)
+        installed = [add_vsix(file, ext, stage)
+                     for file, ext in zip(vsix_files, lock["extensions"])]
+        additional["extensions"] = [{"id": entry["id"], "path": entry["path"]}
+                                    for entry in installed]
+        builtins["extensions"].extend(installed)
+        (stage / "additional-extensions.json").write_text(
+            json.dumps(additional, indent=2) + "\n", encoding="utf-8"
+        )
+        (stage / "extensions.json").write_text(
+            json.dumps(builtins, indent=2) + "\n", encoding="utf-8"
+        )
+        provenance = {
+            "schemaVersion": 1, "kind": "derived-COSW-demo-not-canonical-release",
+            "cosw": {key: lock["cosw"][key] for key in ("tag", "sha256", "url")},
+            "extensions": [{"id": x["id"], "version": x["version"],
+                            "sha256": x["sha256"], "url": x["url"]}
+                           for x in lock["extensions"]],
+            "networkExtraOrigins": [GITHUB_ORIGIN],
+            "defaultPublicRepository": "octocat/Hello-World",
+            "defaultTheme": "Default Dark+",
+            "sourceCommit": os.environ.get("GITHUB_SHA", "local-build"),
+        }
+        (stage / "demo-provenance.json").write_text(
+            json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
+        )
+        (stage / ".nojekyll").write_text("", encoding="utf-8")
+        if output.exists():
+            require(output.is_dir(), "output exists and is not a directory")
+            shutil.rmtree(output)
+        stage.rename(output)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--offline", action="store_true", help="use only SHA-verified cache")
+    parser.add_argument("--output", default="_site")
+    args = parser.parse_args()
+    lock = read_json(LOCK_PATH)
+    validate_lock(lock)
+    cache = ROOT / ".cache" / "downloads"
+    assets = [lock["cosw"], *lock["extensions"]]
+    pinned = [fetch_pinned(asset, cache, offline=args.offline) for asset in assets]
+    output = (ROOT / args.output).resolve()
+    assemble(pinned[0], pinned[1:], output, lock)
+    print(f"Qualified-input COSW demo assembled at {output}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (InvalidArtifact, OSError, ValueError, tarfile.TarError, zipfile.BadZipFile) as exc:
+        raise SystemExit(f"demo build failed closed: {exc}") from None
+).exec(candidate);
+  if (!match || match[2] === '.' || match[2] === '..') return undefined;
+  // Consume the accepted navigation request once so that Remotish's subsequent
+  // canonical-workspace reload does not restart the bootstrap indefinitely.
+  url.searchParams.delete(repos.length ? 'repo' : 'folder');
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  return { folderUri: { scheme: 'remotish-github', authority: 'open',
+    path: '/v1/' + match[1] + '/' + match[2] } };
+}
+const requestedWorkspace = demoRequestedWorkspace();
+if (requestedWorkspace) initialWorkspace = requestedWorkspace;
+else if (!initialWorkspace) initialWorkspace = {
+  folderUri: { scheme: 'remotish-github', authority: 'open',
+    path: '/v1/octocat/Hello-World' }
+};
+"""
+    marker = "const config = {"
+    require(bootstrap.count(marker) == 1, "COSW bootstrap contract changed")
+    # COSW web.2 includes the native workspace provider and URI.revive fix.
+    # Fail closed if a different release no longer provides this contract.
+    require(bootstrap.count("const WORKSPACE_KEY = 'cosw.workspace.v1';") == 1,
+            "COSW web.2 workspace persistence contract missing")
+    require(bootstrap.count("let initialWorkspace;") == 1
+            and bootstrap.count("workspaceProvider: {") == 1
+            and bootstrap.count("workspace: initialWorkspace") == 1,
+            "COSW native workspace provider contract changed")
+    require(bootstrap.count("const config = {") == 1,
+            "COSW workbench contract changed")
+    bootstrap = bootstrap.replace(marker, default_repo + marker, 1)
+    require("enableTelemetry: false" in bootstrap and "invalid.invalid" in bootstrap,
+            "COSW security bootstrap contract changed")
+    bootstrap_path.write_text(bootstrap, encoding="utf-8")
+
+
+def assemble(cosw_tar: Path, vsix_files: list[Path], output: Path, lock: dict) -> None:
+    validate_lock(lock)
+    require(len(vsix_files) == 2, "need two VSIX files")
+    for asset, file in zip([lock["cosw"], *lock["extensions"]], [cosw_tar, *vsix_files]):
+        require(file.stat().st_size <= MAX_DOWNLOAD and sha256_file(file) == asset["sha256"],
+                f"invalid pinned digest: {asset['asset']}")
+    require(not output.is_symlink(), "output must not be a symlink")
+    require(output != ROOT and ROOT in output.parents, "output must be inside repo")
+    with tempfile.TemporaryDirectory(prefix=".cosw-demo-", dir=ROOT) as temporary:
+        stage = Path(temporary) / "site"
+        unpack_cosw(cosw_tar, stage)
+        require((stage / "out/vs/workbench/workbench.web.main.internal.js").is_file(),
+                "COSW web runtime entrypoint missing")
+        require((stage / "out/vs/workbench/workbench.web.main.internal.css").is_file(),
+                "COSW web stylesheet missing")
+        for name in ("additional-extensions.json", "extensions.json", "locked-extensions.json",
+                     "deployment-profile.json", "static-bootstrap.mjs", "runtime.json"):
+            require((stage / name).is_file(), f"COSW contract file missing: {name}")
+        additional = read_json(stage / "additional-extensions.json")
+        builtins = read_json(stage / "extensions.json")
+        locked = read_json(stage / "locked-extensions.json")
+        require(additional == {"schemaVersion": 1, "extensions": []},
+                "demo expects clean COSW extension list")
+        require(locked == {"schemaVersion": 1, "extensions": []},
+                "demo cannot replace COSW approved lock entries")
+        require(builtins.get("schemaVersion") == 1
+                and isinstance(builtins.get("extensions"), list), "invalid COSW extension index")
+        render_policy(stage)
+        installed = [add_vsix(file, ext, stage)
+                     for file, ext in zip(vsix_files, lock["extensions"])]
+        additional["extensions"] = [{"id": entry["id"], "path": entry["path"]}
+                                    for entry in installed]
+        builtins["extensions"].extend(installed)
+        (stage / "additional-extensions.json").write_text(
+            json.dumps(additional, indent=2) + "\n", encoding="utf-8"
+        )
+        (stage / "extensions.json").write_text(
+            json.dumps(builtins, indent=2) + "\n", encoding="utf-8"
+        )
+        provenance = {
+            "schemaVersion": 1, "kind": "derived-COSW-demo-not-canonical-release",
+            "cosw": {key: lock["cosw"][key] for key in ("tag", "sha256", "url")},
+            "extensions": [{"id": x["id"], "version": x["version"],
+                            "sha256": x["sha256"], "url": x["url"]}
+                           for x in lock["extensions"]],
+            "networkExtraOrigins": [GITHUB_ORIGIN],
+            "defaultPublicRepository": "octocat/Hello-World",
+            "defaultTheme": "Default Dark+",
+            "sourceCommit": os.environ.get("GITHUB_SHA", "local-build"),
+        }
+        (stage / "demo-provenance.json").write_text(
+            json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
+        )
+        (stage / ".nojekyll").write_text("", encoding="utf-8")
+        if output.exists():
+            require(output.is_dir(), "output exists and is not a directory")
+            shutil.rmtree(output)
+        stage.rename(output)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--offline", action="store_true", help="use only SHA-verified cache")
+    parser.add_argument("--output", default="_site")
+    args = parser.parse_args()
+    lock = read_json(LOCK_PATH)
+    validate_lock(lock)
+    cache = ROOT / ".cache" / "downloads"
+    assets = [lock["cosw"], *lock["extensions"]]
+    pinned = [fetch_pinned(asset, cache, offline=args.offline) for asset in assets]
+    output = (ROOT / args.output).resolve()
+    assemble(pinned[0], pinned[1:], output, lock)
+    print(f"Qualified-input COSW demo assembled at {output}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (InvalidArtifact, OSError, ValueError, tarfile.TarError, zipfile.BadZipFile) as exc:
+        raise SystemExit(f"demo build failed closed: {exc}") from None
+).exec(folders[0]);
     if (!match) return undefined;
     candidate = match[1] + '/' + match[2];
   }
