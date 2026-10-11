@@ -19,8 +19,14 @@ try {
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   const exceptions = [];
+  const consoleMessages = [];
+  const failedRequests = [];
+  const githubRequests = [];
   const githubResponses = [];
   page.on('pageerror', error => exceptions.push(String(error)));
+  page.on('console', msg => { if (['error', 'warning'].includes(msg.type())) consoleMessages.push(msg.text()); });
+  page.on('requestfailed', req => failedRequests.push(req.url() + ' -> ' + req.failure()?.errorText));
+  page.on('request', req => { if (req.url().includes('github')) githubRequests.push(req.url()); });
   page.on('response', response => {
     if (response.url().startsWith('https://api.github.com/repos/octocat/Hello-World')) {
       githubResponses.push({ url: response.url(), status: response.status(), ok: response.ok() });
@@ -45,12 +51,16 @@ try {
     throw new Error('public GitHub sample workspace not selected');
   }
   await page.locator('.monaco-workbench.vs-dark').waitFor({ timeout: 60000 });
-  for (let i = 0; i < 90 && !githubResponses.some(x => x.ok); i++) {
+  for (let i = 0; i < 40 && !githubResponses.some(x => x.ok); i++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
   if (!githubResponses.some(x => x.ok)) {
-    throw new Error('Remotish GitHub provider did not successfully query public GitHub: ' +
-      JSON.stringify(githubResponses));
+    const view = await page.locator('body').innerText().catch(() => '<body unavailable>');
+    const diagnostics = { githubResponses, githubRequests: githubRequests.slice(-30),
+      exceptions, consoleMessages: consoleMessages.slice(-30), failedRequests: failedRequests.slice(-30),
+      visibleText: view.slice(0, 3000) };
+    console.error('Browser diagnostics:', JSON.stringify(diagnostics, null, 2));
+    throw new Error('Remotish GitHub provider did not successfully query public GitHub');
   }
   if (exceptions.length) throw new Error('browser exceptions: ' + exceptions.join('\n'));
   console.log('browser qualification passed: workbench, dark theme, builtins, public GitHub');
