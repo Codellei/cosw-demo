@@ -271,14 +271,38 @@ def render_policy(site: Path) -> None:
     )
     marker = "const config = {"
     require(bootstrap.count(marker) == 1, "COSW bootstrap contract changed")
-    default_repo = (
-        "if (!initialWorkspace) {\n"
-        "  initialWorkspace = {\n"
-        "    folderUri: { scheme: 'remotish-github', authority: 'open',\n"
-        "      path: '/v1/octocat/Hello-World' }\n"
-        "  };\n"
-        "}\n"
-    )
+    # One small demo-specific deep-link. The URL is untrusted input and can
+    # select only anonymous public GitHub.com owner/repository names; never
+    # credentials, arbitrary schemes, hosts, ports or API origins.
+    default_repo = """function demoRequestedWorkspace() {
+  const url = new URL(window.location.href);
+  const repos = url.searchParams.getAll('repo');
+  const folders = url.searchParams.getAll('folder');
+  if (repos.length + folders.length !== 1) return undefined;
+  let candidate = repos[0];
+  if (folders.length) {
+    const match = /^remotish-github:\\/\\/open\\/v1\\/([^/?#]+)\\/([^/?#]+)$/.exec(folders[0]);
+    if (!match) return undefined;
+    candidate = match[1] + '/' + match[2];
+  }
+  const match = /^([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)\\/([A-Za-z0-9._-]{1,100})$/.exec(candidate);
+  if (!match || match[2] === '.' || match[2] === '..') return undefined;
+  // Consume the accepted navigation request once so that Remotish's subsequent
+  // canonical-workspace reload does not restart the bootstrap indefinitely.
+  url.searchParams.delete(repos.length ? 'repo' : 'folder');
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  return { folderUri: { scheme: 'remotish-github', authority: 'open',
+    path: '/v1/' + match[1] + '/' + match[2] } };
+}
+const requestedWorkspace = demoRequestedWorkspace();
+if (requestedWorkspace) initialWorkspace = requestedWorkspace;
+else if (!initialWorkspace) initialWorkspace = {
+  folderUri: { scheme: 'remotish-github', authority: 'open',
+    path: '/v1/octocat/Hello-World' }
+};
+"""
+    marker = "const config = {"
+    require(bootstrap.count(marker) == 1, "COSW bootstrap contract changed")
     # COSW web.2 includes the native workspace provider and URI.revive fix.
     # Fail closed if a different release no longer provides this contract.
     require(bootstrap.count("const WORKSPACE_KEY = 'cosw.workspace.v1';") == 1,
