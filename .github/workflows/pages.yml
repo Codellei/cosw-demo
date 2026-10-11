@@ -24,7 +24,9 @@ jobs:
           persist-credentials: false
 
       - name: Offline security tests
-        run: python3 -m unittest discover -s tests -v
+        run: |
+          python3 -m unittest discover -s tests -v
+          bash -n scripts/maintain.sh
 
       - name: Assemble SHA-256-pinned releases
         run: python3 -m scripts.build

@@ -22,8 +22,11 @@ repositories, users can follow `?repo=OWNER/REPOSITORY`.
 ## Updating the releases
 
 `config/releases.lock.json` is the only source of release input identities.
-Select official immutable release assets, check their compatibility, licenses,
-published SHA-256 values and provenance, then review and update the lock.
+A scheduled workflow can select newer immutable releases, open a lock-only PR,
+qualify the candidate and optionally merge it without a human. See
+[unattended maintenance](MAINTENANCE.md) for the one-time opt-in and guardrails.
+For manual upgrades, select official immutable release assets and review
+compatibility, licenses, published SHA-256 values and provenance before updating.
 The build refuses unpinned inputs and unsafe extension packages.
 Do not replace an official artifact with a patched copy claiming the
 original publisher's attestation.

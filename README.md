@@ -31,7 +31,7 @@ The public Pages link is usable only after a reviewed, qualified deployment.
 - A read-only PR qualification job; GitHub Pages deployment from `master`
   only after offline tests, policy audit, and a live Chromium GitHub API test pass.
 
-No backend, shared GitHub token, OAuth flow or third-party hosting is needed.
+Routine eligible immutable-release updates can be proposed and promoted automatically after complete qualification, with an explicit opt-in for unattended merging. See [maintenance](docs/MAINTENANCE.md). No backend, shared GitHub token, OAuth flow or third-party hosting is needed.
 Host telemetry, proposed API grants and webviews remain disabled.
 
 ## Developer quickstart
