@@ -15,7 +15,7 @@ SHA-256 verification establishes consistency with the reviewed pinned bytes, but
 COSW `v1.141.0-web.2` supplies the native workspace provider and preserves browser-owned local folders. The upstream COSW release is immutable; this repository only prepares an independently tested derivative of those bytes for GitHub Pages. A strict COSW bootstrap/CSP shape check allows exactly:
 
 - Extra built-in browser extensions `hrashton.remotish` and `hrashton.remotish-github-provider`, from SHA-verified VSIXs. Canonical COSW `locked-extensions.json` remains empty and unchanged.
-- Built-in `Default Dark+` theme and default public `remotish-github://open/v1/octocat/Hello-World` workspace. Existing session workspace persistence remains available.
+- Built-in `Default Dark+` theme and an empty first-visit workspace. A validated GitHub deep link can open a public repository, and existing workspace persistence remains available.
 - One additional `connect-src` origin, `https://api.github.com`. No wildcard, external script origin, `unsafe-eval`, proposed API, telemetry or webview enablement.
 
 The generated `demo-provenance.json` records the source commit, upstream checksums, installed extensions and policy change. It is a **derived-artifact manifest**, not a claim that COSW's release attestation covers the derivative.
