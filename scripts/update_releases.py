@@ -70,12 +70,14 @@ def eligible_release(release: dict, kind: str) -> tuple[tuple[int, ...], dict] |
 
     host = asset_digest(release, "remotish.vsix")
     provider = asset_digest(release, "remotish-github-provider.vsix")
-    if not host or not provider:
+    fixture = asset_digest(release, "remotish-fixture-provider.vsix")
+    if not host or not provider or not fixture:
         return None
     entries = []
     for ext_id, filename, sha in (
         ("hrashton.remotish", "remotish.vsix", host),
         ("hrashton.remotish-github-provider", "remotish-github-provider.vsix", provider),
+        ("hrashton.remotish-fixture-provider", "remotish-fixture-provider.vsix", fixture),
     ):
         entries.append({
             "id": ext_id,
