@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "cosw": {
-    "tag": "v1.141.0-web.1",
-    "asset": "code-oss-static-web-1.141.0-web.1.tar.gz",
-    "url": "https://github.com/Codellei/code-oss-static-web/releases/download/v1.141.0-web.1/code-oss-static-web-1.141.0-web.1.tar.gz",
-    "sha256": "2f1eeace235f98e9d77080ae7939e5cb0199c725459d00a2a4aa82fe1c765f51"
+    "tag": "v1.141.0-web.2",
+    "asset": "code-oss-static-web-1.141.0-web.2.tar.gz",
+    "url": "https://github.com/Codellei/code-oss-static-web/releases/download/v1.141.0-web.2/code-oss-static-web-1.141.0-web.2.tar.gz",
+    "sha256": "d790201eca74e32f3d4fe08ac211c3aa97fe1f3828b32787e610b8a32f5acae1"
   },
   "extensions": [
     {

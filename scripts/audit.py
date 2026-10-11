@@ -26,9 +26,11 @@ assert "default-src 'self';" in text and "object-src 'none';" in text
 assert "'unsafe-eval'" not in text
 bootstrap = (site / "static-bootstrap.mjs").read_text()
 assert "'workbench.colorTheme': 'Default Dark+'" in bootstrap
-assert ("enableTelemetry: false" in bootstrap or "enableTelemetry: runtime.telemetry === true" in bootstrap)
+assert "enableTelemetry: false" in bootstrap
 assert "invalid.invalid" in bootstrap
 assert "/v1/octocat/Hello-World" in bootstrap
+assert bootstrap.count("workspaceProvider: {") == 1
+assert bootstrap.count("const WORKSPACE_KEY = 'cosw.workspace.v1';") == 1
 extensions = load("additional-extensions.json")
 assert [e["id"] for e in extensions["extensions"]] == list(EXPECTED_IDS)
 assert load("locked-extensions.json") == {"schemaVersion": 1, "extensions": []}

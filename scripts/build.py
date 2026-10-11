@@ -279,58 +279,19 @@ def render_policy(site: Path) -> None:
         "  };\n"
         "}\n"
     )
-    persistence_marker = "const WORKSPACE_KEY = 'cosw.workspace.v1';"
-    if persistence_marker not in bootstrap:
-        # COSW v1.141.0-web.1 predates the reviewed workspace provider. Reuse
-        # the current COSW same-tab workspace descriptor contract verbatim.
-        legacy_marker = "  enableWorkspaceTrust: true,\n  additionalBuiltinExtensions,"
-        require(bootstrap.count(legacy_marker) == 1,
-                "legacy COSW bootstrap shape changed")
-        workspace_provider = """const WORKSPACE_KEY = 'cosw.workspace.v1';
-const isWorkspace = value => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  if (Boolean(value.folderUri) === Boolean(value.workspaceUri)) return false;
-  const uri = value.folderUri ?? value.workspaceUri;
-  return uri && typeof uri.scheme === 'string' &&
-    /^[a-z][a-z0-9+.-]*$/.test(uri.scheme) && typeof uri.path === 'string';
-};
-let initialWorkspace;
-try {
-  const value = sessionStorage.getItem(WORKSPACE_KEY);
-  if (value !== null) {
-    const parsed = JSON.parse(value);
-    if (isWorkspace(parsed)) initialWorkspace = parsed;
-    else sessionStorage.removeItem(WORKSPACE_KEY);
-  }
-} catch { /* unavailable storage: keep the empty workbench */ }
-"""
-        bootstrap = bootstrap.replace(marker, workspace_provider + marker, 1)
-        legacy_injection = """  enableWorkspaceTrust: true,
-  workspaceProvider: {
-    workspace: initialWorkspace,
-    trusted: undefined,
-    async open(workspace, options) {
-      if (options?.reuse !== true ||
-          (workspace && !isWorkspace(workspace))) return false;
-      try {
-        if (workspace) sessionStorage.setItem(WORKSPACE_KEY, JSON.stringify(workspace));
-        else sessionStorage.removeItem(WORKSPACE_KEY);
-        window.location.reload();
-        return true;
-      } catch {
-        return false;
-      }
-    }
-  },
-  additionalBuiltinExtensions,"""
-        bootstrap = bootstrap.replace(legacy_marker, legacy_injection, 1)
+    # COSW web.2 includes the native workspace provider and URI.revive fix.
+    # Fail closed if a different release no longer provides this contract.
+    require(bootstrap.count("const WORKSPACE_KEY = 'cosw.workspace.v1';") == 1,
+            "COSW web.2 workspace persistence contract missing")
+    require(bootstrap.count("let initialWorkspace;") == 1
+            and bootstrap.count("workspaceProvider: {") == 1
+            and bootstrap.count("workspace: initialWorkspace") == 1,
+            "COSW native workspace provider contract changed")
+    require(bootstrap.count("const config = {") == 1,
+            "COSW workbench contract changed")
     bootstrap = bootstrap.replace(marker, default_repo + marker, 1)
-    require(
-        ("enableTelemetry: false" in bootstrap
-         or "enableTelemetry: runtime.telemetry === true" in bootstrap)
-        and "invalid.invalid" in bootstrap,
-        "COSW security bootstrap contract changed"
-    )
+    require("enableTelemetry: false" in bootstrap and "invalid.invalid" in bootstrap,
+            "COSW security bootstrap contract changed")
     bootstrap_path.write_text(bootstrap, encoding="utf-8")
 
 
