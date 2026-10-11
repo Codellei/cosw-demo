@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "cosw": {
+    "tag": "v1.141.0-web.1",
+    "asset": "code-oss-static-web-1.141.0-web.1.tar.gz",
+    "url": "https://github.com/Codellei/code-oss-static-web/releases/download/v1.141.0-web.1/code-oss-static-web-1.141.0-web.1.tar.gz",
+    "sha256": "2f1eeace235f98e9d77080ae7939e5cb0199c725459d00a2a4aa82fe1c765f51"
+  },
+  "extensions": [
+    {
+      "id": "hrashton.remotish",
+      "version": "0.1.0-beta.15",
+      "tag": "v0.1.0-beta.15",
+      "asset": "remotish.vsix",
+      "url": "https://github.com/Codellei/remotish/releases/download/v0.1.0-beta.15/remotish.vsix",
+      "sha256": "f9464423344bff766ee99346690aa96e2df3faea9d30427450b9073fb28cb71e",
+      "license": "0BSD"
+    },
+    {
+      "id": "hrashton.remotish-github-provider",
+      "version": "0.1.0-beta.15",
+      "tag": "v0.1.0-beta.15",
+      "asset": "remotish-github-provider.vsix",
+      "url": "https://github.com/Codellei/remotish/releases/download/v0.1.0-beta.15/remotish-github-provider.vsix",
+      "sha256": "d3cbd06e4f9024c378620cfe36a114b28e8736cacaf18cfc39f4f7a9a6ace805",
+      "license": "0BSD"
+    }
+  ]
+}
