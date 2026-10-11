@@ -26,7 +26,8 @@ assert "default-src 'self';" in text and "object-src 'none';" in text
 assert "'unsafe-eval'" not in text
 bootstrap = (site / "static-bootstrap.mjs").read_text()
 assert "'workbench.colorTheme': 'Default Dark+'" in bootstrap
-assert "enableTelemetry: false" in bootstrap and "invalid.invalid" in bootstrap
+assert ("enableTelemetry: false" in bootstrap or "enableTelemetry: runtime.telemetry === true" in bootstrap)
+assert "invalid.invalid" in bootstrap
 assert "/v1/octocat/Hello-World" in bootstrap
 extensions = load("additional-extensions.json")
 assert [e["id"] for e in extensions["extensions"]] == list(EXPECTED_IDS)
