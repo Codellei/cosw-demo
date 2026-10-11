@@ -274,7 +274,7 @@ def render_policy(site: Path) -> None:
     # One small demo-specific deep-link. The URL is untrusted input and can
     # select only anonymous public GitHub.com owner/repository names; never
     # credentials, arbitrary schemes, hosts, ports or API origins.
-    default_repo = """function demoRequestedWorkspace() {
+    requested_repo = """function demoRequestedWorkspace() {
   const url = new URL(window.location.href);
   const repos = url.searchParams.getAll('repo');
   const folders = url.searchParams.getAll('folder');
@@ -296,10 +296,7 @@ def render_policy(site: Path) -> None:
 }
 const requestedWorkspace = demoRequestedWorkspace();
 if (requestedWorkspace) initialWorkspace = requestedWorkspace;
-else if (!initialWorkspace) initialWorkspace = {
-  folderUri: { scheme: 'remotish-github', authority: 'open',
-    path: '/v1/octocat/Hello-World' }
-};
+// With no requested or restored workspace, show the normal empty editor.
 """
     marker = "const config = {"
     require(bootstrap.count(marker) == 1, "COSW bootstrap contract changed")
@@ -313,7 +310,7 @@ else if (!initialWorkspace) initialWorkspace = {
             "COSW native workspace provider contract changed")
     require(bootstrap.count("const config = {") == 1,
             "COSW workbench contract changed")
-    bootstrap = bootstrap.replace(marker, default_repo + marker, 1)
+    bootstrap = bootstrap.replace(marker, requested_repo + marker, 1)
     require("enableTelemetry: false" in bootstrap and "invalid.invalid" in bootstrap,
             "COSW security bootstrap contract changed")
     bootstrap_path.write_text(bootstrap, encoding="utf-8")
@@ -365,7 +362,7 @@ def assemble(cosw_tar: Path, vsix_files: list[Path], output: Path, lock: dict) -
                             "sha256": x["sha256"], "url": x["url"]}
                            for x in lock["extensions"]],
             "networkExtraOrigins": [GITHUB_ORIGIN],
-            "defaultPublicRepository": "octocat/Hello-World",
+            "defaultWorkspace": "empty-on-first-visit",
             "defaultTheme": "Default Dark+",
             "sourceCommit": os.environ.get("GITHUB_SHA", "local-build"),
         }
