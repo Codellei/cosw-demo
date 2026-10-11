@@ -3,7 +3,7 @@
 A **single, static Code OSS Web demo** powered by
 [Code OSS Static Web (COSW)](https://github.com/Codellei/code-oss-static-web),
 [Remotish](https://github.com/Codellei/remotish), and its GitHub provider.
-Includes the built-in **Dark+** theme.
+Includes the built-in **Dark+** theme and Remotish's deterministic fixture provider.
 
 **[Open demo](https://codellei.github.io/cosw-demo/)** ·
 [How to use it](docs/USING.md) ·
@@ -16,7 +16,11 @@ On a fresh visit, the demo opens an **empty editor**. Select **File → Open Fol
 https://codellei.github.io/cosw-demo/?repo=Codellei/remotish
 ```
 
-This is **anonymous, read-only GitHub access**. You can browse, edit and stage
+For an offline sample repository, open the **Command Palette** and run
+**Remotish Demo: Open Fixture Repository**. The fixture is deterministic and
+does not access GitHub.
+
+The GitHub provider uses **anonymous, read-only GitHub access**. You can browse, edit and stage
 changes locally in Remotish's browser overlay; **nothing is pushed to GitHub**.
 Private repositories, GitHub login, and remote write operations are not supported.
 The public Pages link is usable only after a reviewed, qualified deployment.
@@ -24,8 +28,8 @@ The public Pages link is usable only after a reviewed, qualified deployment.
 ## What's included
 
 - One SHA-256-pinned COSW `v1.141.0-web.2` release archive.
-- Two SHA-256-pinned Remotish `v0.1.0-beta.15` browser VSIXs.
-- Dark+ theme, an empty first-visit workspace, and a validated `?repo=OWNER/REPO` selector.
+- Three SHA-256-pinned Remotish `v0.1.0-beta.15` browser VSIXs (host, GitHub provider, fixture provider).
+- Dark+ theme, an empty first-visit workspace, fixture demo command, and a validated `?repo=OWNER/REPO` selector.
 - An independently identified derived distribution with one extra permitted
   network origin: `https://api.github.com`.
 - A read-only PR qualification job; GitHub Pages deployment from `master`
