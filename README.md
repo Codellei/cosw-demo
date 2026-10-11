@@ -10,7 +10,7 @@ Includes the built-in **Dark+** theme.
 [Deploy your own](docs/DEPLOY.md)
 
 The demo opens public GitHub repositories **without signing in**.
-Start with `octocat/Hello-World`, or open another public repository using:
+On a fresh visit, the demo opens an **empty editor**. Select **File → Open Folder** for browser-supported folders, or open a public GitHub repository with:
 
 ```text
 https://codellei.github.io/cosw-demo/?repo=Codellei/remotish
@@ -25,7 +25,7 @@ The public Pages link is usable only after a reviewed, qualified deployment.
 
 - One SHA-256-pinned COSW `v1.141.0-web.2` release archive.
 - Two SHA-256-pinned Remotish `v0.1.0-beta.15` browser VSIXs.
-- Dark+ theme, a public example repository, and a validated `?repo=OWNER/REPO` selector.
+- Dark+ theme, an empty first-visit workspace, and a validated `?repo=OWNER/REPO` selector.
 - An independently identified derived distribution with one extra permitted
   network origin: `https://api.github.com`.
 - A read-only PR qualification job; GitHub Pages deployment from `master`
