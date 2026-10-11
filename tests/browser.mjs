@@ -32,8 +32,27 @@ try {
       githubResponses.push({ url: response.url(), status: response.status(), ok: response.ok() });
     }
   });
-  // Deliberately choose a different repository from the default fixture:
-  // this must exercise the user-facing ?repo=OWNER/REPO selector.
+  // A clean visitor sees an empty Code OSS workspace, not a sample repository.
+  const blank = await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  if (!blank?.ok()) throw new Error('blank workbench document unavailable');
+  await page.locator('.monaco-workbench.vs-dark').waitFor({ timeout: 60000 });
+  const blankSettings = JSON.parse(await page.locator('#vscode-workbench-web-configuration')
+    .getAttribute('data-settings'));
+  if (blankSettings.workspaceProvider.workspace !== undefined) {
+    throw new Error('a fresh visit must not open a default repository');
+  }
+  if (blankSettings.configurationDefaults['workbench.startupEditor'] !== 'none') {
+    throw new Error('fresh visit should start without an open editor');
+  }
+  if (blankSettings.additionalBuiltinExtensions.length !== 2) {
+    throw new Error('empty workbench must still load Remotish and its GitHub provider');
+  }
+  await page.waitForTimeout(1300);
+  if (githubResponses.length || githubRequests.some(x => x.startsWith('https://api.github.com/repos/'))) {
+    throw new Error('empty startup unexpectedly requested a GitHub repository');
+  }
+  // A subsequent explicit link must still open a repository.
+
   const requestedRepo = 'Codellei/remotish';
   const response = await page.goto(origin + '?repo=' + encodeURIComponent(requestedRepo),
     { waitUntil: 'domcontentloaded', timeout: 60000 });

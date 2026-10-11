@@ -28,7 +28,10 @@ bootstrap = (site / "static-bootstrap.mjs").read_text()
 assert "'workbench.colorTheme': 'Default Dark+'" in bootstrap
 assert "enableTelemetry: false" in bootstrap
 assert "invalid.invalid" in bootstrap
-assert "/v1/octocat/Hello-World" in bootstrap
+assert "else if (!initialWorkspace)" not in bootstrap
+assert "const requestedWorkspace = demoRequestedWorkspace();" in bootstrap
+assert "if (requestedWorkspace) initialWorkspace = requestedWorkspace;" in bootstrap
+assert "/v1/octocat/Hello-World" not in bootstrap
 assert bootstrap.count("workspaceProvider: {") == 1
 assert bootstrap.count("const WORKSPACE_KEY = 'cosw.workspace.v1';") == 1
 extensions = load("additional-extensions.json")
@@ -41,5 +44,7 @@ for ext in EXPECTED_IDS:
 manifest = load("demo-provenance.json")
 assert manifest["kind"] == "derived-COSW-demo-not-canonical-release"
 assert manifest["networkExtraOrigins"] == [GITHUB_ORIGIN]
+assert manifest["defaultWorkspace"] == "empty-on-first-visit"
+assert "defaultPublicRepository" not in manifest
 assert (site / ".nojekyll").exists()
 print("demo artifact policy audit: ok")
