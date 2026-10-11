@@ -35,6 +35,7 @@ def tar_bytes(*, path="index.html", symlink=False):
         "const WORKSPACE_KEY = 'cosw.workspace.v1';\n"
         "let initialWorkspace;\n"
         "const config = {\n"
+        "  workspaceProvider: { workspace: initialWorkspace },\n"
         "  configurationDefaults: { 'workbench.startupEditor': 'none' },\n"
         "  productConfiguration: { enableTelemetry: false, "
         "webviewContentExternalBaseUrlTemplate: 'https://invalid.invalid' }\n"
