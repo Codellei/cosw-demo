@@ -8,7 +8,7 @@ Failures must not overwrite the previously deployed GitHub Pages demo.
 After each successful COSW or Remotish release, GitHub Actions dispatches this maintenance workflow using a short-lived GitHub App token. A daily reconciliation run checks for newer **immutable** releases of
 `Codellei/code-oss-static-web` and `Codellei/remotish`. The selector
 accepts COSW `v1.*-web.*` and Remotish `v0.1.*-beta.*` only, requiring
-published SHA-256 digests and complete assets. The host and GitHub provider
+published SHA-256 digests and complete assets. The host, GitHub provider and fixture provider
 VSIXs must belong to the same Remotish release. Unsupported versions, mutable
 releases, missing digests and unknown formats are skipped.
 
