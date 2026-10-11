@@ -1,35 +1,42 @@
-# COSW demo
+# COSW Remotish demo
 
-A minimal, public, zero-backend [Code OSS Static Web](https://github.com/Codellei/code-oss-static-web) deployment with **Default Dark+**, [Remotish](https://github.com/Codellei/remotish) and the **Remotish GitHub Provider**.
+A **single, static Code OSS Web demo** powered by
+[Code OSS Static Web (COSW)](https://github.com/Codellei/code-oss-static-web),
+[Remotish](https://github.com/Codellei/remotish), and its GitHub provider.
+Includes the built-in **Dark+** theme.
 
-**Demo URL (after successful Pages deployment):** https://codellei.github.io/cosw-demo/
+**[Open demo](https://codellei.github.io/cosw-demo/)** ·
+[How to use it](docs/USING.md) ·
+[Deploy your own](docs/DEPLOY.md)
 
-This site opens the **public** `octocat/Hello-World` GitHub repository by default. Visitors need **no GitHub account or token**. This is anonymous, **read-only public-repository access**, not GitHub sign-in, private-repository access, or an authenticated push client.
-
-## Architecture
+The demo opens public GitHub repositories **without signing in**.
+Start with `octocat/Hello-World`, or open another public repository using:
 
 ```text
-Exact COSW release tar.gz + two Remotish VSIX releases
-     |
-     | SHA-256 pin, safe extraction, browser entrypoint and license checks
-     v
-Python stdlib assembler
-     | - register 2 additional browser extensions
-     | - Dark+ and a sample public GitHub workspace
-     | - add only api.github.com to connect-src
-     v
-Derived _site/ output + demo-provenance.json
-     |
-Offline tests -> policy audit -> Chromium live GitHub-provider test
-     |
-Qualified GitHub Pages artifact -> single Pages deployment
+https://codellei.github.io/cosw-demo/?repo=Codellei/remotish
 ```
 
-The canonical COSW tarball is never changed or re-released. This is a separately qualified **derived demo**, not a supported COSW profile. The extension lock and SHA-256 values in [config/releases.lock.json](config/releases.lock.json) are reviewed and never follow `latest`.
+This is **anonymous, read-only GitHub access**. You can browse, edit and stage
+changes locally in Remotish's browser overlay; **nothing is pushed to GitHub**.
+Private repositories, GitHub login, and remote write operations are not supported.
+The public Pages link is usable only after a reviewed, qualified deployment.
 
-## Local build
+## What's included
 
-Python 3.11+ (standard library only) is required:
+- One SHA-256-pinned COSW `v1.141.0-web.2` release archive.
+- Two SHA-256-pinned Remotish `v0.1.0-beta.15` browser VSIXs.
+- Dark+ theme, a public example repository, and a validated `?repo=OWNER/REPO` selector.
+- An independently identified derived distribution with one extra permitted
+  network origin: `https://api.github.com`.
+- A read-only PR qualification job; GitHub Pages deployment from `master`
+  only after offline tests, policy audit, and a live Chromium GitHub API test pass.
+
+No backend, shared GitHub token, OAuth flow or third-party hosting is needed.
+Host telemetry, proposed API grants and webviews remain disabled.
+
+## Developer quickstart
+
+Requires Python 3.11+:
 
 ```sh
 python3 -m unittest discover -s tests -v
@@ -38,30 +45,12 @@ python3 -m scripts.audit _site
 python3 -m http.server 8000 --directory _site
 ```
 
-Open http://127.0.0.1:8000/. Network access to GitHub Releases is needed for the first build. For full Chromium qualification (Node.js 24):
+Open `http://127.0.0.1:8000/`. For the same Chromium check used in CI,
+install Node.js 24 and run `npm install --ignore-scripts --package-lock=false`,
+`npx playwright install chromium`, then `node tests/browser.mjs`.
 
-```sh
-npm install --ignore-scripts --package-lock=false
-npx playwright install chromium
-node tests/browser.mjs
-```
-
-The browser test starts its own local server on port 8765 and requires the anonymous GitHub REST API to be reachable.
-
-## Fork to GitHub Pages
-
-1. Fork this repo. Review [the architecture and threat model](docs/architecture.md) and [security policy](SECURITY.md).
-2. Under **Settings → Pages → Build and deployment**, set **Source: GitHub Actions**.
-3. Protect `master` and require PR review and the `qualify` status check for workflow, policy, and dependency-pin changes.
-4. Merge a qualified change or manually dispatch **Qualify and deploy demo** from `master`. A failing build or browser test prevents publication.
-5. Open https://OWNER.github.io/REPOSITORY/. All runtime asset URLs remain relative to the project's Pages path.
-
-The PR job has read-only GitHub permissions and cannot deploy untrusted PR content. Pages deployment uses a short-lived GitHub OIDC token scoped to its deploy job. No GitHub tokens, OAuth flow, application secrets, server or proxy are needed.
-
-## Compatibility and limits
-
-Currently pinned COSW `v1.141.0-web.2` includes the Open VSX-ready profile and native workspace persistence / URI restoration added in COSW PRs #110 and #112. Both Remotish VSIXs are pinned at `v0.1.0-beta.15`. Runtime activation is subject to the browser qualification workflow; the public Open VSX registry alone does not establish compatibility. This demo does not change COSW's canonical production extension-lock admission/mirror policy.
-
-The derived CSP permits `https://api.github.com` as the **only** extra connection origin beyond those already present in the pinned COSW release. Proposed APIs, workbench telemetry and webviews remain disabled. GitHub anonymous API limits and CORS restrictions apply, and GitHub can receive visitors' IP addresses through direct browser requests.
-
-Do not use this demonstration with private data or credentials. Playwright Chromium qualification does not imply support for every OS/browser, enterprise proxy, or managed client. See [docs/architecture.md](docs/architecture.md).
+The distribution is **a derivative demo**, not an official COSW release or
+enterprise-supported deployment. Original upstream attestations do not attest to
+the modified output. See the [architecture and security model](docs/architecture.md)
+and [security policy](SECURITY.md). No multi-profile catalog or PR-preview
+deployment is part of this repository.

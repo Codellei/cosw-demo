@@ -138,6 +138,9 @@ class AssemblerTests(unittest.TestCase):
         self.assertIn("connect-src 'self' https://api.github.com;", output["index"])
         self.assertIn("Default Dark+", output["bootstrap"])
         self.assertIn("octocat/Hello-World", output["bootstrap"])
+        self.assertIn("demoRequestedWorkspace", output["bootstrap"])
+        self.assertIn("history.replaceState", output["bootstrap"])
+        self.assertIn("repos.length + folders.length !== 1", output["bootstrap"])
         self.assertEqual([HOST, PROVIDER],
                          [x["id"] for x in output["additional"]["extensions"]])
         self.assertEqual(output["locked"], {"schemaVersion": 1, "extensions": []})

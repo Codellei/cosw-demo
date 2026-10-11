@@ -28,12 +28,14 @@ try {
   page.on('requestfailed', req => failedRequests.push(req.url() + ' -> ' + req.failure()?.errorText));
   page.on('request', req => { if (req.url().includes('github')) githubRequests.push(req.url()); });
   page.on('response', response => {
-    if (response.url().startsWith('https://api.github.com/repos/octocat/Hello-World')) {
+    if (response.url().startsWith('https://api.github.com/repos/Codellei/remotish')) {
       githubResponses.push({ url: response.url(), status: response.status(), ok: response.ok() });
     }
   });
-  const sample = 'remotish-github://open/v1/octocat/Hello-World';
-  const response = await page.goto(origin + '?folder=' + encodeURIComponent(sample),
+  // Deliberately choose a different repository from the default fixture:
+  // this must exercise the user-facing ?repo=OWNER/REPO selector.
+  const requestedRepo = 'Codellei/remotish';
+  const response = await page.goto(origin + '?repo=' + encodeURIComponent(requestedRepo),
     { waitUntil: 'domcontentloaded', timeout: 60000 });
   if (!response?.ok()) throw new Error('workbench document unavailable');
   await page.locator('.monaco-workbench').waitFor({ timeout: 60000 });
@@ -49,8 +51,13 @@ try {
   if (settings.additionalBuiltinExtensions.length !== 2) {
     throw new Error('expected host and GitHub provider are not preloaded');
   }
-  if (settings.workspaceProvider.workspace?.folderUri?.scheme !== 'remotish-github') {
-    throw new Error('public GitHub sample workspace not selected');
+  const selected = settings.workspaceProvider.workspace?.folderUri;
+  if (selected?.scheme !== 'remotish-github' ||
+      selected.path !== '/v1/Codellei/remotish') {
+    throw new Error('public GitHub deep link did not select the requested repository');
+  }
+  if (new URL(page.url()).searchParams.has('repo')) {
+    throw new Error('repo query must be consumed after the validated deep link');
   }
   await page.locator('.monaco-workbench.vs-dark').waitFor({ timeout: 60000 });
   for (let i = 0; i < 25 && !githubResponses.some(x => x.ok); i++) {
